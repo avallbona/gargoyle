@@ -5,6 +5,7 @@ gargoyle.testutils
 :copyright: (c) 2010 DISQUS.
 :license: Apache License 2.0, see LICENSE for more details.
 """
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import inspect
@@ -20,10 +21,13 @@ class TestCaseContextDecorator(ContextDecorator):
     ContextDecorator subclass that allows the sane decoration of TestCase classes by wrapping
     from setUpClass to tearDownClass
     """
+
     def __call__(self, decorable):
         if inspect.isclass(decorable):
             if not issubclass(decorable, unittest.TestCase):
-                raise ValueError("Only supports the wrapping of unittest.TestCase classes")
+                raise ValueError(
+                    "Only supports the wrapping of unittest.TestCase classes"
+                )
 
             klass = decorable
 
@@ -40,7 +44,7 @@ class TestCaseContextDecorator(ContextDecorator):
                     self.__exit__(*sys.exc_info())
                     raise
 
-            if orig_setUpClass is klass.__dict__.get('setUpClass', None):
+            if orig_setUpClass is klass.__dict__.get("setUpClass", None):
                 # was defined on this class, state we wrap it
                 setUpClass.__wrapped__ = orig_setUpClass
 
@@ -50,7 +54,7 @@ class TestCaseContextDecorator(ContextDecorator):
                     orig_tearDownClass()
                 self.__exit__(None, None, None)
 
-            if orig_tearDownClass is klass.__dict__.get('tearDownClass', None):
+            if orig_tearDownClass is klass.__dict__.get("tearDownClass", None):
                 # was defined on this class, state we wrap it
                 tearDownClass.__wrapped__ = orig_tearDownClass
 
@@ -98,6 +102,7 @@ class SwitchContextManager(TestCaseContextDecorator):
     ...     def test_foo(self):
     ...          # ... and here
     """
+
     def __init__(self, gargoyle=gargoyle, **keys):
         self.gargoyle = gargoyle
         self.is_active_func = gargoyle.is_active
@@ -122,6 +127,7 @@ class SwitchContextManager(TestCaseContextDecorator):
                 if key in self.keys:
                     return self.keys[key]
                 return is_active_func(key, *args, **kwargs)
+
             return wrapped
 
         self.gargoyle.is_active = is_active(self.gargoyle)

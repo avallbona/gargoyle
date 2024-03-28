@@ -5,13 +5,13 @@ gargoyle.models
 :copyright: (c) 2010 DISQUS.
 :license: Apache License 2.0, see LICENSE for more details.
 """
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from django.conf import settings
 from django.db import models
 from django.utils.timezone import now
-from django.utils.translation import ugettext_lazy as _
-from jsonfield import JSONField
+from django.utils.translation import gettext_lazy as _
 
 from .constants import DISABLED, EXCLUDE, GLOBAL, INCLUDE, INHERIT, SELECTIVE
 
@@ -31,21 +31,21 @@ class Switch(models.Model):
     """
 
     STATUS_CHOICES = (
-        (DISABLED, 'Disabled'),
-        (SELECTIVE, 'Selective'),
-        (GLOBAL, 'Global'),
-        (INHERIT, 'Inherit'),
+        (DISABLED, "Disabled"),
+        (SELECTIVE, "Selective"),
+        (GLOBAL, "Global"),
+        (INHERIT, "Inherit"),
     )
 
     STATUS_LABELS = {
-        INHERIT: 'Inherit from parent',
-        GLOBAL: 'Active for everyone',
-        SELECTIVE: 'Active for conditions',
-        DISABLED: 'Disabled for everyone',
+        INHERIT: "Inherit from parent",
+        GLOBAL: "Active for everyone",
+        SELECTIVE: "Active for conditions",
+        DISABLED: "Disabled for everyone",
     }
 
     key = models.CharField(max_length=64, primary_key=True)
-    value = JSONField()
+    value = models.JSONField(default=dict)
     label = models.CharField(max_length=64, null=True)
     date_created = models.DateTimeField(default=now)
     date_modified = models.DateTimeField(auto_now=True)
@@ -53,67 +53,73 @@ class Switch(models.Model):
     status = models.PositiveSmallIntegerField(default=DISABLED, choices=STATUS_CHOICES)
 
     class Meta:
-        app_label = 'gargoyle'
-        permissions = (
-            ("can_view", "Can view"),
-        )
-        verbose_name = _('switch')
-        verbose_name_plural = _('switches')
+        app_label = "gargoyle"
+        permissions = (("can_view", "Can view"),)
+        verbose_name = _("switch")
+        verbose_name_plural = _("switches")
 
     def __init__(self, *args, **kwargs):
         if (
-            kwargs and
-            hasattr(settings, 'GARGOYLE_SWITCH_DEFAULTS') and
-            'key' in kwargs and
-            'status' not in kwargs
+            kwargs
+            and hasattr(settings, "GARGOYLE_SWITCH_DEFAULTS")
+            and "key" in kwargs
+            and "status" not in kwargs
         ):
-            key = kwargs['key']
+            key = kwargs["key"]
             switch_default = settings.GARGOYLE_SWITCH_DEFAULTS.get(key)
             if switch_default is not None:
-                is_active = switch_default.get('is_active')
+                is_active = switch_default.get("is_active")
                 if is_active is True:
-                    kwargs['status'] = GLOBAL
+                    kwargs["status"] = GLOBAL
                 elif is_active is False:
-                    kwargs['status'] = DISABLED
-                elif switch_default.get('initial_status') in self.STATUS_LABELS:
-                    kwargs['status'] = switch_default['initial_status']
-                if not kwargs.get('label'):
-                    kwargs['label'] = switch_default.get('label')
-                if not kwargs.get('description'):
-                    kwargs['description'] = switch_default.get('description')
+                    kwargs["status"] = DISABLED
+                elif switch_default.get("initial_status") in self.STATUS_LABELS:
+                    kwargs["status"] = switch_default["initial_status"]
+                if not kwargs.get("label"):
+                    kwargs["label"] = switch_default.get("label")
+                if not kwargs.get("description"):
+                    kwargs["description"] = switch_default.get("description")
 
         return super(Switch, self).__init__(*args, **kwargs)
 
     def __unicode__(self):
-        return u"%s=%s" % (self.key, self.value)
+        return "%s=%s" % (self.key, self.value)
 
     def to_dict(self, manager):
         data = {
-            'key': self.key,
-            'status': self.status,
-            'statusLabel': self.get_status_label(),
-            'label': self.label or self.key.title(),
-            'description': self.description,
-            'date_modified': self.date_modified,
-            'date_created': self.date_created,
-            'conditions': [],
+            "key": self.key,
+            "status": self.status,
+            "statusLabel": self.get_status_label(),
+            "label": self.label or self.key.title(),
+            "description": self.description,
+            "date_modified": self.date_modified,
+            "date_created": self.date_created,
+            "conditions": [],
         }
 
         last = None
-        for condition_set_id, group, field, value, exclude in self.get_active_conditions(manager):
-            if not last or last['id'] != condition_set_id:
+        for (
+            condition_set_id,
+            group,
+            field,
+            value,
+            exclude,
+        ) in self.get_active_conditions(manager):
+            if not last or last["id"] != condition_set_id:
                 if last:
-                    data['conditions'].append(last)
+                    data["conditions"].append(last)
 
                 last = {
-                    'id': condition_set_id,
-                    'label': group,
-                    'conditions': [],
+                    "id": condition_set_id,
+                    "label": group,
+                    "conditions": [],
                 }
 
-            last['conditions'].append((field.name, value, field.display(value), exclude))
+            last["conditions"].append(
+                (field.name, value, field.display(value), exclude)
+            )
         if last:
-            data['conditions'].append(last)
+            data["conditions"].append(last)
 
         return data
 
@@ -125,7 +131,9 @@ class Switch(models.Model):
         conditions = [c for _, c in self.value[namespace][field_name]]
         return condition not in conditions
 
-    def add_condition(self, manager, condition_set, field_name, condition, exclude=False, commit=True):
+    def add_condition(
+        self, manager, condition_set, field_name, condition, exclude=False, commit=True
+    ):
         """
         Adds a new condition and registers it in the global ``gargoyle`` switch manager.
 
@@ -137,17 +145,21 @@ class Switch(models.Model):
         """
         condition_set = manager.get_condition_set_by_id(condition_set)
 
-        assert isinstance(condition, str), 'conditions must be strings'
+        assert isinstance(condition, str), "conditions must be strings"
 
         namespace = condition_set.get_namespace()
 
         if self.can_add_condition(namespace, field_name, condition):
-            self.value[namespace][field_name].append((exclude and EXCLUDE or INCLUDE, condition))
+            self.value[namespace][field_name].append(
+                (exclude and EXCLUDE or INCLUDE, condition)
+            )
 
         if commit:
             self.save()
 
-    def remove_condition(self, manager, condition_set, field_name, condition, commit=True):
+    def remove_condition(
+        self, manager, condition_set, field_name, condition, commit=True
+    ):
         """
         Removes a condition and updates the global ``gargoyle`` switch manager.
 
@@ -167,7 +179,9 @@ class Switch(models.Model):
         if field_name not in self.value[namespace]:
             return
 
-        self.value[namespace][field_name] = [c for c in self.value[namespace][field_name] if c[1] != condition]
+        self.value[namespace][field_name] = [
+            c for c in self.value[namespace][field_name] if c[1] != condition
+        ]
 
         if not self.value[namespace][field_name]:
             del self.value[namespace][field_name]
@@ -220,7 +234,9 @@ class Switch(models.Model):
         >>> for label, set_id, field, value, exclude in gargoyle.get_all_conditions():
         >>>     print("%(label)s: %(field)s = %(value)s (exclude: %(exclude)s)" % (label, field.label, value, exclude))
         """
-        for condition_set in sorted(manager.get_condition_sets(), key=lambda x: x.get_group_label()):
+        for condition_set in sorted(
+            manager.get_condition_sets(), key=lambda x: x.get_group_label()
+        ):
             ns = condition_set.get_namespace()
             condition_set_id = condition_set.get_id()
             if ns in self.value:
@@ -228,7 +244,9 @@ class Switch(models.Model):
                 for name, field in condition_set.fields.items():
                     for value in self.value[ns].get(name, []):
                         try:
-                            yield condition_set_id, group, field, value[1], value[0] == EXCLUDE
+                            yield condition_set_id, group, field, value[1], value[
+                                0
+                            ] == EXCLUDE
                         except TypeError:
                             continue
 

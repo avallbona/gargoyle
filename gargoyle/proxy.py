@@ -13,7 +13,7 @@ class SwitchProxy(object):
             return getattr(self._switch, attr)
 
     def __setattr__(self, attr, value):
-        if attr in ('_switch', '_manager'):
+        if attr in ("_switch", "_manager"):
             object.__setattr__(self, attr, value)
         else:
             setattr(self._switch, attr, value)

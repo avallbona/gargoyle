@@ -5,6 +5,7 @@ gargoyle.conditions
 :copyright: (c) 2010 DISQUS.
 :license: Apache License 2.0, see LICENSE for more details.
 """
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import datetime
@@ -18,7 +19,7 @@ from gargoyle.models import EXCLUDE
 
 
 def titlize(s):
-    return s.title().replace('_', ' ')
+    return s.title().replace("_", " ")
 
 
 class Field(object):
@@ -41,14 +42,18 @@ class Field(object):
         value = data.get(self.name)
         if value:
             value = self.clean(value)
-            assert isinstance(value, str), 'clean methods must return strings'
+            assert isinstance(value, str), "clean methods must return strings"
         return value
 
     def clean(self, value):
         return value
 
     def render(self, value):
-        return format_html('<input type="text" value="{value}" name="{name}"/>', value=value or '', name=self.name)
+        return format_html(
+            '<input type="text" value="{value}" name="{name}"/>',
+            value=value or "",
+            name=self.name,
+        )
 
     def display(self, value):
         return value
@@ -60,7 +65,9 @@ class Boolean(Field):
         return bool(value)
 
     def render(self, value):
-        return format_html('<input type="hidden" value="1" name="{name}"/>', name=self.name)
+        return format_html(
+            '<input type="hidden" value="1" name="{name}"/>', name=self.name
+        )
 
     def display(self, value):
         return self.label
@@ -86,42 +93,44 @@ class Range(Field):
     def is_active(self, condition, value):
         if not isinstance(value, self.integer_comparable_types):
             return False
-        bounds = list(map(int, condition.split('-')))
+        bounds = list(map(int, condition.split("-")))
         return value >= bounds[0] and value <= bounds[1]
 
     def validate(self, data):
-        minimum = data.get(self.name + '[min]', '')
-        maximum = data.get(self.name + '[max]', '')
+        minimum = data.get(self.name + "[min]", "")
+        maximum = data.get(self.name + "[max]", "")
 
         if minimum and maximum:
-            value = '-'.join((minimum, maximum))
+            value = "-".join((minimum, maximum))
         else:
-            value = ''
+            value = ""
 
         return self.clean(value)
 
     def clean(self, value):
-        error = ValidationError("You must enter two valid integer values separated by a dash.")
+        error = ValidationError(
+            "You must enter two valid integer values separated by a dash."
+        )
 
         if not value:
             raise error
 
         try:
-            bounds = list(map(int, value.split('-')))
+            bounds = list(map(int, value.split("-")))
         except (TypeError, ValueError):
             raise error
 
         if not len(bounds) == 2:
             raise error
 
-        return '-'.join(str(x) for x in bounds)
+        return "-".join(str(x) for x in bounds)
 
     def render(self, value):
         if not value:
-            value = ['', '']
+            value = ["", ""]
         return format_html(
             '<input type="text" value="{value_form}" placeholder="from" name="{name}[min]"/>%'
-            ' - '
+            " - "
             '<input type="text" placeholder="to" value="{value_to}" name="{name}[max]"/>%',
             value_form=value[0],
             value_to=value[1],
@@ -129,32 +138,37 @@ class Range(Field):
         )
 
     def display(self, value):
-        value = value.split('-')
-        return '%s: %s-%s' % (self.label, value[0], value[1])
+        value = value.split("-")
+        return "%s: %s-%s" % (self.label, value[0], value[1])
 
 
 class Percent(Range):
-    default_help_text = 'Enter two ranges. e.g. 0-50 is lower 50%'
+    default_help_text = "Enter two ranges. e.g. 0-50 is lower 50%"
 
     def is_active(self, condition, value):
-        condition = list(map(int, condition.split('-')))
+        condition = list(map(int, condition.split("-")))
         mod = value % 100
         return mod >= condition[0] and mod <= condition[1]
 
     def display(self, value):
-        value = value.split('-')
-        return '%s: %s%% (%s-%s)' % (self.label, int(value[1]) - int(value[0]), value[0], value[1])
+        value = value.split("-")
+        return "%s: %s%% (%s-%s)" % (
+            self.label,
+            int(value[1]) - int(value[0]),
+            value[0],
+            value[1],
+        )
 
     def clean(self, value):
         value = super(Percent, self).clean(value)
         if value:
-            minimum, maximum = list(map(int, value.split('-')))
+            minimum, maximum = list(map(int, value.split("-")))
 
             if minimum < 0 or minimum > 100 or maximum < 0 or maximum > 100:
-                raise ValidationError('You must enter values between 0 and 100.')
+                raise ValidationError("You must enter values between 0 and 100.")
 
             if minimum > maximum:
-                raise ValidationError('Start value must be less than end value.')
+                raise ValidationError("Start value must be less than end value.")
 
         return value
 
@@ -178,7 +192,9 @@ class AbstractDate(Field):
         try:
             date = self.str_to_date(value)
         except ValueError as e:
-            raise ValidationError("Date must be a valid date in the format YYYY-MM-DD.\n(%s)" % str(e))
+            raise ValidationError(
+                "Date must be a valid date in the format YYYY-MM-DD.\n(%s)" % str(e)
+            )
 
         return date.strftime(self.DATE_FORMAT)
 
@@ -186,7 +202,11 @@ class AbstractDate(Field):
         if not value:
             value = datetime.date.today().strftime(self.DATE_FORMAT)
 
-        return format_html('<input type="text" value="{value}" name="{name}"/>', value=value, name=self.name)
+        return format_html(
+            '<input type="text" value="{value}" name="{name}"/>',
+            value=value,
+            name=self.name,
+        )
 
     def is_active(self, condition, value):
         assert isinstance(value, datetime.date)
@@ -213,22 +233,22 @@ class OnOrAfterDate(AbstractDate):
 
 class ConditionSetBase(type):
     def __new__(cls, name, bases, attrs):
-        attrs['fields'] = {}
+        attrs["fields"] = {}
 
         # Inherit any fields from parent(s).
         parents = [b for b in bases if isinstance(b, ConditionSetBase)]
 
         for p in parents:
-            fields = getattr(p, 'fields', None)
+            fields = getattr(p, "fields", None)
 
             if fields:
-                attrs['fields'].update(fields)
+                attrs["fields"].update(fields)
 
         for field_name, obj in list(attrs.items()):
             if isinstance(obj, Field):
                 field = attrs.pop(field_name)
                 field.set_values(field_name)
-                attrs['fields'][field_name] = field
+                attrs["fields"][field_name] = field
 
         instance = super(ConditionSetBase, cls).__new__(cls, name, bases, attrs)
 
@@ -238,14 +258,14 @@ class ConditionSetBase(type):
 class ConditionSet(metaclass=ConditionSetBase):
 
     def __repr__(self):
-        return '<%s>' % (self.__class__.__name__,)
+        return "<%s>" % (self.__class__.__name__,)
 
     def get_id(self):
         """
         Returns a string representing a unique identifier for this ConditionSet
         instance.
         """
-        return '%s.%s' % (self.__module__, self.__class__.__name__)
+        return "%s.%s" % (self.__module__, self.__class__.__name__)
 
     def can_execute(self, instance):
         """
@@ -270,8 +290,8 @@ class ConditionSet(metaclass=ConditionSetBase):
         """
         # XXX: can we come up w/ a better API?
         # Ensure we map ``percent`` to the ``id`` column
-        if field_name == 'percent':
-            field_name = 'id'
+        if field_name == "percent":
+            field_name = "id"
         value = getattr(instance, field_name)
         if callable(value):
             value = value()
@@ -330,20 +350,24 @@ class ModelConditionSet(ConditionSet):
         self.model = model
 
     def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__, self.model.__name__)
+        return "<%s: %s>" % (self.__class__.__name__, self.model.__name__)
 
     def can_execute(self, instance):
         return isinstance(instance, self.model)
 
     def get_id(self):
-        return '%s.%s(%s)' % (self.__module__, self.__class__.__name__, self.get_namespace())
+        return "%s.%s(%s)" % (
+            self.__module__,
+            self.__class__.__name__,
+            self.get_namespace(),
+        )
 
     def get_namespace(self):
-        if hasattr(self.model._meta, 'model_name'):
+        if hasattr(self.model._meta, "model_name"):
             model_name = self.model._meta.model_name
         else:
             model_name = self.model._meta.module_name
-        return '%s.%s' % (self.model._meta.app_label, model_name)
+        return "%s.%s" % (self.model._meta.app_label, model_name)
 
     def get_group_label(self):
         return self.model._meta.verbose_name.title()
@@ -351,7 +375,7 @@ class ModelConditionSet(ConditionSet):
 
 class RequestConditionSet(ConditionSet):
     def get_namespace(self):
-        return 'request'
+        return "request"
 
     def can_execute(self, instance):
         return isinstance(instance, HttpRequest)

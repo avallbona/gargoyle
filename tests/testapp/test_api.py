@@ -667,6 +667,7 @@ class APITest(TestCase):
 
         active_by_default = self.gargoyle['active_by_default']
         active_by_default.status = DISABLED
+        active_by_default.value = dict()
         active_by_default.save()
         assert not self.gargoyle.is_active('active_by_default')
 

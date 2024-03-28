@@ -48,3 +48,7 @@ docs/_build
 
 # Tests
 tests/dev-database.sqlite3
+
+.python-version
+.idea
+venv

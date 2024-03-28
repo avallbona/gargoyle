@@ -25,7 +25,11 @@ class SwitchManager(ModelDict):
         super(SwitchManager, self).__init__(*args, **kwargs)
 
     def __repr__(self):
-        return "<%s: %s (%s)>" % (self.__class__.__name__, self.model, self._registry.values())
+        return "<%s: %s (%s)>" % (
+            self.__class__.__name__,
+            self.model,
+            self._registry.values(),
+        )
 
     def __getitem__(self, key):
         """
@@ -42,14 +46,14 @@ class SwitchManager(ModelDict):
 
         >>> gargoyle.is_active('my_feature', request)
         """
-        default = kwargs.pop('default', False)
+        default = kwargs.pop("default", False)
 
         # Check all parents for a disabled state
-        parts = key.split(':')
+        parts = key.split(":")
         if len(parts) > 1:
             child_kwargs = kwargs.copy()
-            child_kwargs['default'] = None
-            result = self.is_active(':'.join(parts[:-1]), *instances, **child_kwargs)
+            child_kwargs["default"] = None
+            result = self.is_active(":".join(parts[:-1]), *instances, **child_kwargs)
 
             if result is False:
                 return result
@@ -78,7 +82,7 @@ class SwitchManager(ModelDict):
             # HACK: support request.user by swapping in User instance
             instances = list(instances)
             for v in instances:
-                if isinstance(v, HttpRequest) and hasattr(v, 'user'):
+                if isinstance(v, HttpRequest) and hasattr(v, "user"):
                     instances.append(v.user)
 
         # check each switch to see if it can execute
@@ -120,7 +124,7 @@ class SwitchManager(ModelDict):
         else:
             registerable = condition_set
         popped = self._registry.pop(registerable.get_id(), None)
-        return (popped is not None)
+        return popped is not None
 
     def get_condition_set_by_id(self, switch_id):
         """
@@ -143,7 +147,9 @@ class SwitchManager(ModelDict):
         >>> for set_id, label, field in gargoyle.get_all_conditions():
         >>>     print("%(label)s: %(field)s" % (label, field.label))
         """
-        for condition_set in sorted(self.get_condition_sets(), key=lambda x: x.get_group_label()):
+        for condition_set in sorted(
+            self.get_condition_sets(), key=lambda x: x.get_group_label()
+        ):
             group = str(condition_set.get_group_label())
             for field in condition_set.fields.values():
                 yield condition_set.get_id(), group, field
@@ -153,14 +159,14 @@ def make_gargoyle():
     from gargoyle.models import Switch
 
     kwargs = {
-        'key': 'key',
-        'value': 'value',
-        'instances': True,
-        'auto_create': getattr(settings, 'GARGOYLE_AUTO_CREATE', True),
+        "key": "key",
+        "value": "value",
+        "instances": True,
+        "auto_create": getattr(settings, "GARGOYLE_AUTO_CREATE", True),
     }
 
-    if hasattr(settings, 'GARGOYLE_CACHE_NAME'):
-        kwargs['cache'] = caches[settings.GARGOYLE_CACHE_NAME]
+    if hasattr(settings, "GARGOYLE_CACHE_NAME"):
+        kwargs["cache"] = caches[settings.GARGOYLE_CACHE_NAME]
 
     return SwitchManager(Switch, **kwargs)
 

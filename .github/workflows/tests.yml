@@ -1,0 +1,50 @@
+name: python package
+
+on:
+  push:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        django: [
+          "django>=4.2,<5.0",
+        ]
+        python: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+          pip install "${{ matrix.django }}"
+          pip install -e .
+
+      - name: run tests
+        run: python -Wd runtests.py
+
+  linters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: setup python
+        uses: actions/setup-python@v2
+
+      - name: Install the requirements
+        run: |
+          pip install -r requirements.txt
+          pip install "django>=4.2,<5.0"
+
+      - name: run the linter
+        run: |
+          black gargoyle
+          isort gargoyle
+          flake8 gargoyle
